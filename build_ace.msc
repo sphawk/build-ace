@@ -1,0 +1,121 @@
+# Makefile for build-ace
+#
+# Usage:
+#   nmake -f build-ace.msc
+
+GIT = git
+PERL = perl
+MSBUILD = msbuild
+
+SOURCE = $(MAKEDIR)\source
+ZLIB_SRC = $(SOURCE)\zlib
+OPENSSL_SRC = $(SOURCE)\openssl
+ACE_SRC = $(SOURCE)\ATCD
+
+LIBRARY = $(MAKEDIR)\library
+ZLIB_ROOT = $(LIBRARY)\zlib
+OPENSSL_ROOT = $(LIBRARY)\openssl
+ACE_ROOT = $(SOURCE)\ATCD\ACE
+ACE_INSTALL_PATH = $(LIBRARY)\ace
+
+ATCD_ORIGIN = https://github.com/sphawk/ATCD.git
+OPENSSL_ORIGIN = https://github.com/sphawk/openssl.git
+ZLIB_ORIGIN = https://github.com/sphawk/zlib.git
+
+ATCD_UPSTREAM = https://github.com/DOCGroup/ATCD.git
+OPENSSL_UPSTREAM = https://github.com/openssl/openssl.git
+ZLIB_UPSTREAM = https://github.com/madler/zlib.git
+MPC_UPSTREAM = https://github.com/DOCGroup/MPC.git
+
+# targets
+
+clone: clean
+    -mkdir $(SOURCE)
+    -mkdir $(LIBRARY)
+    pushd $(SOURCE) & $(GIT) clone $(ATCD_ORIGIN)
+    pushd $(SOURCE) & $(GIT) clone $(OPENSSL_ORIGIN)
+    pushd $(SOURCE) & $(GIT) clone $(ZLIB_ORIGIN)
+    pushd $(ACE_ROOT)     & $(GIT) clone $(MPC_UPSTREAM)
+    pushd $(ARC_SRC)      & $(GIT) remote add upstream $(ATCD_ORIGIN)
+    pushd $(OPENSSL_SRC)  & $(GIT) remote add upstream $(OPENSSL_ORIGIN)
+    pushd $(ZLIB_SRC)     & $(GIT) remote add upstream $(ZLIB_ORIGIN)
+
+ace-build:
+    set ACE_ROOT=$(ACE_ROOT)
+    set SSL_ROOT=$(OPENSSL_ROOT)
+    set ZLIB_ROOT=$(ZLIB_ROOT)
+    pushd $(ACE_ROOT) & echo #include "config-win32.h" > ace\config.h
+    pushd $(ACE_ROOT) & bin\mwc.pl -type vc12 -features "qos=1,ssl=1,zlib=1" -genins -value_template "multiprocessorcompilation=true" ace\ACE.mwc
+    pushd $(ACE_ROOT) & bin\mwc.pl -type vc12 -features "qos=1,ssl=1,zlib=1" -genins -static -name_modifier *_Static -value_template "multiprocessorcompilation=true" ace\ACE.mwc
+    pushd $(ACE_ROOT) & $(MSBUILD) /p:Configuration=Debug /p:Platform=x64 /t:Build /maxcpucount ace\ACE.sln
+    pushd $(ACE_ROOT) & $(MSBUILD) /p:Configuration=Release /p:Platform=x64 /t:Build /maxcpucount ace\ACE.sln
+    pushd $(ACE_ROOT) & $(MSBUILD) /p:Configuration=Debug /p:Platform=x64 /t:Build /maxcpucount ace\ACE_Static.sln
+    pushd $(ACE_ROOT) & $(MSBUILD) /p:Configuration=Release /p:Platform=x64 /t:Build /maxcpucount ace\ACE_Static.sln
+
+ace-test: ace-build
+    pushd $(ACE_ROOT) & bin\mwc.pl -type vc12 -features "qos=1,ssl=1,zlib=1" -genins -value_template "multiprocessorcompilation=true" tests\tests.mwc
+    pushd $(ACE_ROOT) & bin\mwc.pl -type vc12 -features "qos=1,ssl=1,zlib=1" -genins -static -name_modifier *_Static -value_template "multiprocessorcompilation=true" tests\tests.mwc
+
+ace-example: ace-example
+    pushd $(ACE_ROOT) & bin\mwc.pl -type vc12 -features "qos=1,ssl=1,zlib=1" -genins -value_template "multiprocessorcompilation=true" examples\examples.mwc
+    pushd $(ACE_ROOT) & bin\mwc.pl -type vc12 -features "qos=1,ssl=1,zlib=1" -genins -static -name_modifier *_Static -value_template "multiprocessorcompilation=true" examples\examples.mwc
+
+ace-install: ace-build
+    pushd $(ACE_ROOT) & mpc\prj_install.pl -a lib_output $(ACE_INSTALL_PATH) ace
+
+openssl-build:
+    pushd $(OPENSSL_SRC) & $(GIT) checkout OpenSSL_1_0_2a
+    pushd $(OPENSSL_SRC) & $(PERL) Configure VC-WIN64A --prefix="$(OPENSSL_ROOT)"
+    pushd $(OPENSSL_SRC) & call ms\do_win64a
+    pushd $(OPENSSL_SRC) & $(MAKE) -f ms\ntdll.mak
+
+openssl-test: openssl-build
+    pushd $(OPENSSL_SRC) & $(MAKE) -f ms\ntdll.mak test
+
+openssl-install: openssl-build
+    pushd $(OPENSSL_SRC) & $(MAKE) -f ms\ntdll.mak install
+
+zlib-build:
+    pushd $(ZLIB_SRC) & $(MAKE) -f win32/Makefile.msc AS=ml64 LOC="-DASMV -DASMINF -I." OBJA="inffasx64.obj gvmat64.obj inffas8664.obj"
+
+zlib-test: zlib-build
+    pushd $(ZLIB_SRC) & $(MAKE) -f win32/Makefile.msc test
+    pushd $(ZLIB_SRC) & $(MAKE) -f win32/Makefile.msc testdll
+
+zlib-install: zlib-build
+    -rmdir /s /q $(ZLIB_ROOT)\include
+    -rmdir /s /q $(ZLIB_ROOT)\lib
+    -rmdir /s /q $(ZLIB_ROOT)\bin
+    -mkdir $(ZLIB_ROOT)\include
+    -mkdir $(ZLIB_ROOT)\lib
+    -mkdir $(ZLIB_ROOT)\bin
+    xcopy /y /q $(ZLIB_SRC)\zconf.h $(ZLIB_ROOT)\include
+    xcopy /y /q $(ZLIB_SRC)\zlib.h  $(ZLIB_ROOT)\include
+    xcopy /y /q $(ZLIB_SRC)\zlib.lib  $(ZLIB_ROOT)\lib
+    xcopy /y /q $(ZLIB_SRC)\zlib.map  $(ZLIB_ROOT)\lib
+    xcopy /y /q $(ZLIB_SRC)\zlib.pdb  $(ZLIB_ROOT)\lib
+    xcopy /y /q $(ZLIB_SRC)\zdll.exp  $(ZLIB_ROOT)\lib
+    xcopy /y /q $(ZLIB_SRC)\zdll.lib  $(ZLIB_ROOT)\lib
+    xcopy /y /q $(ZLIB_SRC)\zlib1.dll $(ZLIB_ROOT)\bin
+    xcopy /y /q $(ZLIB_SRC)\zlib1.pdb $(ZLIB_ROOT)\bin
+
+# sync local and origin from upstream
+sync:
+    pushd $(ACE_SRC) & $(GIT) fetch upstream
+    pushd $(ACE_SRC) & $(GIT) checkout master
+    pushd $(ACE_SRC) & $(GIT) merge upstream/master
+    pushd $(ACE_SRC) & $(GIT) push origin master
+    pushd $(ACE_SRC)\ACE\MPC & $(GIT) merge origin/master
+    pushd $(OPENSSL_SRC) & $(GIT) fetch upstream
+    pushd $(OPENSSL_SRC) & $(GIT) checkout master
+    pushd $(OPENSSL_SRC) & $(GIT) merge upstream/master
+    pushd $(OPENSSL_SRC) & $(GIT) push origin master
+    pushd $(ZLIB_SRC) & $(GIT) fetch upstream
+    pushd $(ZLIB_SRC) & $(GIT) checkout master
+    pushd $(ZLIB_SRC) & $(GIT) merge upstream/master
+    pushd $(ZLIB_SRC) & $(GIT) push origin master
+
+# cleanup
+clean:
+	-rmdir /s /q $(LIBRARY)
+	-rmdir /s /q $(SOURCE)
