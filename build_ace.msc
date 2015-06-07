@@ -1,7 +1,7 @@
 # Makefile for build-ace
 #
 # Usage:
-#   nmake -f build-ace.msc
+#   nmake -f build-ace.msc clone zlib-install openssl-install ace-install
 
 GIT = git
 PERL = perl
@@ -27,41 +27,66 @@ OPENSSL_UPSTREAM = https://github.com/openssl/openssl.git
 ZLIB_UPSTREAM = https://github.com/madler/zlib.git
 MPC_UPSTREAM = https://github.com/DOCGroup/MPC.git
 
+ACE_CONFIGURE_OPTION = -type vc12 -features "qos=1,ssl=1,zlib=1" -genins -value_template "multiprocessorcompilation=true"
+ACE_CONFIGURE_STATIC = -static -name_modifier *_Static
+
 # targets
 
-clone: clean
+clone:
     -mkdir $(SOURCE)
     -mkdir $(LIBRARY)
     pushd $(SOURCE) & $(GIT) clone $(ATCD_ORIGIN)
     pushd $(SOURCE) & $(GIT) clone $(OPENSSL_ORIGIN)
     pushd $(SOURCE) & $(GIT) clone $(ZLIB_ORIGIN)
-    pushd $(ACE_ROOT)     & $(GIT) clone $(MPC_UPSTREAM)
-    pushd $(ARC_SRC)      & $(GIT) remote add upstream $(ATCD_ORIGIN)
-    pushd $(OPENSSL_SRC)  & $(GIT) remote add upstream $(OPENSSL_ORIGIN)
-    pushd $(ZLIB_SRC)     & $(GIT) remote add upstream $(ZLIB_ORIGIN)
+    pushd $(ACE_ROOT) & $(GIT) clone $(MPC_UPSTREAM)
+    pushd $(ACE_SRC) & $(GIT) remote add upstream $(ATCD_UPSTREAM)
+    pushd $(OPENSSL_SRC) & $(GIT) remote add upstream $(OPENSSL_UPSTREAM)
+    pushd $(ZLIB_SRC) & $(GIT) remote add upstream $(ZLIB_UPSTREAM)
 
-ace-build:
-    set ACE_ROOT=$(ACE_ROOT)
-    set SSL_ROOT=$(OPENSSL_ROOT)
-    set ZLIB_ROOT=$(ZLIB_ROOT)
-    pushd $(ACE_ROOT) & echo #include "config-win32.h" > ace\config.h
-    pushd $(ACE_ROOT) & bin\mwc.pl -type vc12 -features "qos=1,ssl=1,zlib=1" -genins -value_template "multiprocessorcompilation=true" ace\ACE.mwc
-    pushd $(ACE_ROOT) & bin\mwc.pl -type vc12 -features "qos=1,ssl=1,zlib=1" -genins -static -name_modifier *_Static -value_template "multiprocessorcompilation=true" ace\ACE.mwc
-    pushd $(ACE_ROOT) & $(MSBUILD) /p:Configuration=Debug /p:Platform=x64 /t:Build /maxcpucount ace\ACE.sln
-    pushd $(ACE_ROOT) & $(MSBUILD) /p:Configuration=Release /p:Platform=x64 /t:Build /maxcpucount ace\ACE.sln
-    pushd $(ACE_ROOT) & $(MSBUILD) /p:Configuration=Debug /p:Platform=x64 /t:Build /maxcpucount ace\ACE_Static.sln
-    pushd $(ACE_ROOT) & $(MSBUILD) /p:Configuration=Release /p:Platform=x64 /t:Build /maxcpucount ace\ACE_Static.sln
+ace-build-configure: $(ACE_ROOT)\ace\ACE.sln $(ACE_ROOT)\ace\ACE_Static.sln
+
+ace-clean-configure:
+    del $(ACE_ROOT)\ace\ACE.sln
+    del $(ACE_ROOT)\ace\ACE_Static.sln
+
+$(ACE_ROOT)\ace\ACE.sln:
+    @set ACE_ROOT=$(ACE_ROOT)
+    @set SSL_ROOT=$(OPENSSL_ROOT)
+    @set ZLIB_ROOT=$(ZLIB_ROOT)
+    @pushd $(ACE_ROOT) & echo #include "config-win32.h" > ace\config.h
+    @pushd $(ACE_ROOT) & bin\mwc.pl $(ACE_CONFIGURE_OPTION) ace\ACE.mwc
+
+$(ACE_ROOT)\ace\ACE_Static.sln:
+    @set ACE_ROOT=$(ACE_ROOT)
+    @set SSL_ROOT=$(OPENSSL_ROOT)
+    @set ZLIB_ROOT=$(ZLIB_ROOT)
+    @pushd $(ACE_ROOT) & echo #include "config-win32.h" > ace\config.h
+    @pushd $(ACE_ROOT) & bin\mwc.pl $(ACE_CONFIGURE_OPTION) $(ACE_CONFIGURE_STATIC) ace\ACE.mwc
+
+ace-build: ace-build-configure
+    @set ACE_ROOT=$(ACE_ROOT)
+    @set SSL_ROOT=$(OPENSSL_ROOT)
+    @set ZLIB_ROOT=$(ZLIB_ROOT)
+    @pushd $(ACE_ROOT) & $(MSBUILD) /p:Configuration=Debug /p:Platform=x64 /t:Build /maxcpucount ace\ACE.sln
+    @pushd $(ACE_ROOT) & $(MSBUILD) /p:Configuration=Release /p:Platform=x64 /t:Build /maxcpucount ace\ACE.sln
+    @pushd $(ACE_ROOT) & $(MSBUILD) /p:Configuration=Debug /p:Platform=x64 /t:Build /maxcpucount ace\ACE_Static.sln
+    @pushd $(ACE_ROOT) & $(MSBUILD) /p:Configuration=Release /p:Platform=x64 /t:Build /maxcpucount ace\ACE_Static.sln
 
 ace-test: ace-build
-    pushd $(ACE_ROOT) & bin\mwc.pl -type vc12 -features "qos=1,ssl=1,zlib=1" -genins -value_template "multiprocessorcompilation=true" tests\tests.mwc
-    pushd $(ACE_ROOT) & bin\mwc.pl -type vc12 -features "qos=1,ssl=1,zlib=1" -genins -static -name_modifier *_Static -value_template "multiprocessorcompilation=true" tests\tests.mwc
+    pushd $(ACE_ROOT) & bin\mwc.pl $(ACE_CONFIGURE_OPTION) tests\tests.mwc
+    pushd $(ACE_ROOT) & bin\mwc.pl $(ACE_CONFIGURE_OPTION) $(ACE_CONFIGURE_STATIC) tests\tests.mwc
 
 ace-example: ace-example
-    pushd $(ACE_ROOT) & bin\mwc.pl -type vc12 -features "qos=1,ssl=1,zlib=1" -genins -value_template "multiprocessorcompilation=true" examples\examples.mwc
-    pushd $(ACE_ROOT) & bin\mwc.pl -type vc12 -features "qos=1,ssl=1,zlib=1" -genins -static -name_modifier *_Static -value_template "multiprocessorcompilation=true" examples\examples.mwc
+    pushd $(ACE_ROOT) & bin\mwc.pl $(ACE_CONFIGURE_OPTION) examples\examples.mwc
+    pushd $(ACE_ROOT) & bin\mwc.pl $(ACE_CONFIGURE_OPTION) $(ACE_CONFIGURE_STATIC) examples\examples.mwc
 
 ace-install: ace-build
-    pushd $(ACE_ROOT) & mpc\prj_install.pl -a lib_output $(ACE_INSTALL_PATH) ace
+    -mkdir $(ACE_INSTALL_PATH)\lib
+    -mkdir $(ACE_INSTALL_PATH)\bin
+    pushd $(ACE_ROOT) & mpc\prj_install.pl $(ACE_INSTALL_PATH) ace
+    pushd $(ACE_ROOT) & xcopy /y /q .\lib\*.lib $(ACE_INSTALL_PATH)\lib
+    pushd $(ACE_ROOT) & xcopy /y /q .\lib\*.dll $(ACE_INSTALL_PATH)\bin
+    pushd $(ACE_ROOT) & xcopy /y /q .\lib\*.pdb $(ACE_INSTALL_PATH)\bin
 
 openssl-build:
     pushd $(OPENSSL_SRC) & $(GIT) checkout OpenSSL_1_0_2a
