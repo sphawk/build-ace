@@ -32,7 +32,15 @@ ACE_CONFIGURE_STATIC = -static -name_modifier *_Static
 
 # targets
 
-clone:
+check_prerequisite: .prerequisite
+
+.prerequisite:
+    $(GIT) --version
+    $(PERL) --version | find "ActiveState"
+    $(MSBUILD) /version
+    echo "all passsed" > .prerequisite
+
+clone: check_prerequisite
     -mkdir $(SOURCE)
     -mkdir $(LIBRARY)
     pushd $(SOURCE) & $(GIT) clone $(ATCD_ORIGIN)
@@ -46,8 +54,8 @@ clone:
 ace-build-configure: $(ACE_ROOT)\ace\ACE.sln $(ACE_ROOT)\ace\ACE_Static.sln
 
 ace-clean-configure:
-    del $(ACE_ROOT)\ace\ACE.sln
-    del $(ACE_ROOT)\ace\ACE_Static.sln
+    del /s /q $(ACE_ROOT)\ace\*.sln
+    del /s /q $(ACE_ROOT)\ace\*.vcxproj
 
 $(ACE_ROOT)\ace\ACE.sln:
     @set ACE_ROOT=$(ACE_ROOT)
@@ -63,7 +71,7 @@ $(ACE_ROOT)\ace\ACE_Static.sln:
     @pushd $(ACE_ROOT) & echo #include "config-win32.h" > ace\config.h
     @pushd $(ACE_ROOT) & bin\mwc.pl $(ACE_CONFIGURE_OPTION) $(ACE_CONFIGURE_STATIC) ace\ACE.mwc
 
-ace-build: ace-build-configure
+ace-build: check_prerequisite ace-build-configure
     @set ACE_ROOT=$(ACE_ROOT)
     @set SSL_ROOT=$(OPENSSL_ROOT)
     @set ZLIB_ROOT=$(ZLIB_ROOT)
@@ -88,7 +96,7 @@ ace-install: ace-build
     pushd $(ACE_ROOT) & xcopy /y /q .\lib\*.dll $(ACE_INSTALL_PATH)\bin
     pushd $(ACE_ROOT) & xcopy /y /q .\lib\*.pdb $(ACE_INSTALL_PATH)\bin
 
-openssl-build:
+openssl-build: check_prerequisite
     pushd $(OPENSSL_SRC) & $(GIT) checkout OpenSSL_1_0_2a
     pushd $(OPENSSL_SRC) & $(PERL) Configure VC-WIN64A --prefix="$(OPENSSL_ROOT)"
     pushd $(OPENSSL_SRC) & call ms\do_win64a
@@ -100,7 +108,7 @@ openssl-test: openssl-build
 openssl-install: openssl-build
     pushd $(OPENSSL_SRC) & $(MAKE) -f ms\ntdll.mak install
 
-zlib-build:
+zlib-build: check_prerequisite
     pushd $(ZLIB_SRC) & $(MAKE) -f win32/Makefile.msc AS=ml64 LOC="-DASMV -DASMINF -I." OBJA="inffasx64.obj gvmat64.obj inffas8664.obj"
 
 zlib-test: zlib-build
@@ -125,7 +133,7 @@ zlib-install: zlib-build
     xcopy /y /q $(ZLIB_SRC)\zlib1.pdb $(ZLIB_ROOT)\bin
 
 # sync local and origin from upstream
-sync:
+sync: check_prerequisite
     pushd $(ACE_SRC) & $(GIT) fetch upstream
     pushd $(ACE_SRC) & $(GIT) checkout master
     pushd $(ACE_SRC) & $(GIT) merge upstream/master
@@ -142,5 +150,6 @@ sync:
 
 # cleanup
 clean:
+    -del .prerequisite
 	-rmdir /s /q $(LIBRARY)
 	-rmdir /s /q $(SOURCE)
