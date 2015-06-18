@@ -1,4 +1,4 @@
-# Makefile for build-ace
+# Makefile for build-ace (x64, windows)
 #
 # Usage:
 #   nmake -f build-ace.msc clone zlib-install openssl-install ace-install
@@ -7,149 +7,205 @@ GIT = git
 PERL = perl
 MSBUILD = msbuild
 
-SOURCE = $(MAKEDIR)\source
-ZLIB_SRC = $(SOURCE)\zlib
-OPENSSL_SRC = $(SOURCE)\openssl
-ACE_SRC = $(SOURCE)\ATCD
+# set version
+ACE_VERSION = master
+OPENSSL_VERSION = OpenSSL_1_0_2c
+ZLIB_VERSION = master
 
-LIBRARY = $(MAKEDIR)\library
-ZLIB_ROOT = $(LIBRARY)\zlib
-OPENSSL_ROOT = $(LIBRARY)\openssl
-ACE_ROOT = $(SOURCE)\ATCD\ACE
-ACE_INSTALL_PATH = $(LIBRARY)\ace
+# set configure options
+ACE_CONFIGURE_OPTION = -type vc12 -features "qos=1,ssl=1,zlib=1" -genins -value_template "multiprocessorcompilation=true"
+ACE_CONFIGURE_STATIC = -static -name_modifier *_Static
 
+# set origins
 ATCD_ORIGIN = https://github.com/sphawk/ATCD.git
 OPENSSL_ORIGIN = https://github.com/sphawk/openssl.git
 ZLIB_ORIGIN = https://github.com/sphawk/zlib.git
 
+# set upstreams
 ATCD_UPSTREAM = https://github.com/DOCGroup/ATCD.git
 OPENSSL_UPSTREAM = https://github.com/openssl/openssl.git
 ZLIB_UPSTREAM = https://github.com/madler/zlib.git
 MPC_UPSTREAM = https://github.com/DOCGroup/MPC.git
 
-ACE_CONFIGURE_OPTION = -type vc12 -features "qos=1,ssl=1,zlib=1" -genins -value_template "multiprocessorcompilation=true"
-ACE_CONFIGURE_STATIC = -static -name_modifier *_Static
+# set source directories
+SOURCE = $(MAKEDIR)\source
+ZLIB_SRC = $(SOURCE)\zlib
+OPENSSL_SRC = $(SOURCE)\openssl
+ACE_SRC = $(SOURCE)\ATCD
+ACE_ROOT = $(SOURCE)\ATCD\ACE
+
+# set destination directories
+LIBRARY = $(MAKEDIR)\library
+ZLIB_ROOT = $(LIBRARY)\zlib
+OPENSSL_ROOT = $(LIBRARY)\openssl
+ACE_INSTALL_PATH = $(LIBRARY)\ace
 
 # targets
 
 check_prerequisite: .prerequisite
 
 .prerequisite:
-    $(GIT) --version
-    $(PERL) --version | find "ActiveState"
-    $(MSBUILD) /version
-    echo "all passsed" > .prerequisite
+	$(GIT) --version
+	$(PERL) --version | find "ActiveState"
+	$(MSBUILD) /version
+	echo "all passsed" > .prerequisite
 
 clone: check_prerequisite
-    -mkdir $(SOURCE)
-    -mkdir $(LIBRARY)
-    pushd $(SOURCE) & $(GIT) clone $(ATCD_ORIGIN)
-    pushd $(SOURCE) & $(GIT) clone $(OPENSSL_ORIGIN)
-    pushd $(SOURCE) & $(GIT) clone $(ZLIB_ORIGIN)
-    pushd $(ACE_ROOT) & $(GIT) clone $(MPC_UPSTREAM)
-    pushd $(ACE_SRC) & $(GIT) remote add upstream $(ATCD_UPSTREAM)
-    pushd $(OPENSSL_SRC) & $(GIT) remote add upstream $(OPENSSL_UPSTREAM)
-    pushd $(ZLIB_SRC) & $(GIT) remote add upstream $(ZLIB_UPSTREAM)
+	-@md $(SOURCE)
+	-@md $(LIBRARY)
+	@cd $(SOURCE) && $(GIT) clone $(ATCD_ORIGIN)
+	@cd $(SOURCE) && $(GIT) clone $(OPENSSL_ORIGIN)
+	@cd $(SOURCE) && $(GIT) clone $(ZLIB_ORIGIN)
+	@cd $(ACE_ROOT) && $(GIT) clone $(MPC_UPSTREAM)
+	@cd $(ACE_SRC) && $(GIT) remote add upstream $(ATCD_UPSTREAM)
+	@cd $(OPENSSL_SRC) && $(GIT) remote add upstream $(OPENSSL_UPSTREAM)
+	@cd $(ZLIB_SRC) && $(GIT) remote add upstream $(ZLIB_UPSTREAM)
 
-ace-build-configure: $(ACE_ROOT)\ace\ACE.sln $(ACE_ROOT)\ace\ACE_Static.sln
+ace-checkout:
+    cd $(ACE_ROOT) && $(GIT) checkout $(ACE_VERSION)
+
+ace-build-configure: ace-checkout $(ACE_ROOT)\ace\ACE.sln $(ACE_ROOT)\ace\ACE_Static.sln
 
 ace-clean-configure:
-    del /s /q $(ACE_ROOT)\ace\*.sln
-    del /s /q $(ACE_ROOT)\ace\*.vcxproj
+	@del /s /q $(ACE_ROOT)\ace\*.sln
+	@del /s /q $(ACE_ROOT)\ace\*.vcxproj
 
 $(ACE_ROOT)\ace\ACE.sln:
     @set ACE_ROOT=$(ACE_ROOT)
     @set SSL_ROOT=$(OPENSSL_ROOT)
     @set ZLIB_ROOT=$(ZLIB_ROOT)
-    @pushd $(ACE_ROOT) & echo #include "config-win32.h" > ace\config.h
-    @pushd $(ACE_ROOT) & bin\mwc.pl $(ACE_CONFIGURE_OPTION) ace\ACE.mwc
+    @cd $(ACE_ROOT) && echo #include "config-win32.h" > ace\config.h
+	@cd $(ACE_ROOT) && bin\mwc.pl $(ACE_CONFIGURE_OPTION) ace\ACE.mwc
 
 $(ACE_ROOT)\ace\ACE_Static.sln:
     @set ACE_ROOT=$(ACE_ROOT)
     @set SSL_ROOT=$(OPENSSL_ROOT)
     @set ZLIB_ROOT=$(ZLIB_ROOT)
-    @pushd $(ACE_ROOT) & echo #include "config-win32.h" > ace\config.h
-    @pushd $(ACE_ROOT) & bin\mwc.pl $(ACE_CONFIGURE_OPTION) $(ACE_CONFIGURE_STATIC) ace\ACE.mwc
+    @cd $(ACE_ROOT) && echo #include "config-win32.h" > ace\config.h
+    @cd $(ACE_ROOT) && bin\mwc.pl $(ACE_CONFIGURE_OPTION) $(ACE_CONFIGURE_STATIC) ace\ACE.mwc
 
 ace-build: check_prerequisite ace-build-configure
-    @set ACE_ROOT=$(ACE_ROOT)
-    @set SSL_ROOT=$(OPENSSL_ROOT)
-    @set ZLIB_ROOT=$(ZLIB_ROOT)
-    @pushd $(ACE_ROOT) & $(MSBUILD) /p:Configuration=Debug /p:Platform=x64 /t:Build /maxcpucount ace\ACE.sln
-    @pushd $(ACE_ROOT) & $(MSBUILD) /p:Configuration=Release /p:Platform=x64 /t:Build /maxcpucount ace\ACE.sln
-    @pushd $(ACE_ROOT) & $(MSBUILD) /p:Configuration=Debug /p:Platform=x64 /t:Build /maxcpucount ace\ACE_Static.sln
-    @pushd $(ACE_ROOT) & $(MSBUILD) /p:Configuration=Release /p:Platform=x64 /t:Build /maxcpucount ace\ACE_Static.sln
+	@set ACE_ROOT=$(ACE_ROOT)
+	@set SSL_ROOT=$(OPENSSL_ROOT)
+	@set ZLIB_ROOT=$(ZLIB_ROOT)
+	@cd $(ACE_ROOT) && $(MSBUILD) /p:Configuration=Debug /p:Platform=x64 /t:Build /maxcpucount ace\ACE.sln
+	@cd $(ACE_ROOT) && $(MSBUILD) /p:Configuration=Release /p:Platform=x64 /t:Build /maxcpucount ace\ACE.sln
+    @cd $(ACE_ROOT) && $(MSBUILD) /p:Configuration=Debug /p:Platform=x64 /t:Build /maxcpucount ace\ACE_Static.sln
+    @cd $(ACE_ROOT) && $(MSBUILD) /p:Configuration=Release /p:Platform=x64 /t:Build /maxcpucount ace\ACE_Static.sln
 
-ace-test: ace-build
-    pushd $(ACE_ROOT) & bin\mwc.pl $(ACE_CONFIGURE_OPTION) tests\tests.mwc
-    pushd $(ACE_ROOT) & bin\mwc.pl $(ACE_CONFIGURE_OPTION) $(ACE_CONFIGURE_STATIC) tests\tests.mwc
+$(ACE_ROOT)\tests\tests.sln:
+    @cd $(ACE_ROOT) && bin\mwc.pl $(ACE_CONFIGURE_OPTION) tests\tests.mwc
 
-ace-example: ace-example
-    pushd $(ACE_ROOT) & bin\mwc.pl $(ACE_CONFIGURE_OPTION) examples\examples.mwc
-    pushd $(ACE_ROOT) & bin\mwc.pl $(ACE_CONFIGURE_OPTION) $(ACE_CONFIGURE_STATIC) examples\examples.mwc
+$(ACE_ROOT)\tests\tests_Static.sln:
+    @cd $(ACE_ROOT) && bin\mwc.pl $(ACE_CONFIGURE_OPTION) $(ACE_CONFIGURE_STATIC) tests\tests.mwc
+
+ace-test-config-clean:
+    @cd $(ACE_ROOT) && del examples\examples.sln
+    @cd $(ACE_ROOT) && del examples\examples_Static.sln
+
+ace-test: ace-build $(ACE_ROOT)\tests\tests.sln $(ACE_ROOT)\tests\tests_Static.sln
+    @cd $(ACE_ROOT) && $(MSBUILD) /p:Configuration=Debug /p:Platform=x64 /t:Build /maxcpucount tests\tests.sln
+    @cd $(ACE_ROOT) && $(MSBUILD) /p:Configuration=Release /p:Platform=x64 /t:Build /maxcpucount tests\tests.sln
+    @cd $(ACE_ROOT) && $(MSBUILD) /p:Configuration=Debug /p:Platform=x64 /t:Build /maxcpucount tests\tests_Static.sln
+    @cd $(ACE_ROOT) && $(MSBUILD) /p:Configuration=Release /p:Platform=x64 /t:Build /maxcpucount tests\tests_Static.sln
+    @set PATH=%PATH%;$(ACE_ROOT)\lib
+    @cd $(ACE_ROOT)\tests && run_test.pl
+
+$(ACE_ROOT)\examples\examples.sln:
+    @cd $(ACE_ROOT) && bin\mwc.pl $(ACE_CONFIGURE_OPTION) examples\examples.mwc
+
+$(ACE_ROOT)\examples\examples_Static.sln:
+    @cd $(ACE_ROOT) && bin\mwc.pl $(ACE_CONFIGURE_OPTION) $(ACE_CONFIGURE_STATIC) examples\examples.mwc
+
+ace-example-config-clean:
+    @cd $(ACE_ROOT) && del examples\examples.sln
+    @cd $(ACE_ROOT) && del examples\examples_Static.sln
+
+ace-example: ace-build $(ACE_ROOT)\examples\examples.sln $(ACE_ROOT)\examples\examples_Static.sln
+    @cd $(ACE_ROOT) && $(MSBUILD) /p:Configuration=Debug /p:Platform=x64 /t:Build /maxcpucount examples\examples.sln
+    @cd $(ACE_ROOT) && $(MSBUILD) /p:Configuration=Release /p:Platform=x64 /t:Build /maxcpucount examples\examples.sln
+    @cd $(ACE_ROOT) && $(MSBUILD) /p:Configuration=Debug /p:Platform=x64 /t:Build /maxcpucount examples\examples_Static.sln
+    @cd $(ACE_ROOT) && $(MSBUILD) /p:Configuration=Release /p:Platform=x64 /t:Build /maxcpucount examples\examples_Static.sln
 
 ace-install: ace-build
-    -mkdir $(ACE_INSTALL_PATH)\lib
-    -mkdir $(ACE_INSTALL_PATH)\bin
-    pushd $(ACE_ROOT) & mpc\prj_install.pl $(ACE_INSTALL_PATH) ace
-    pushd $(ACE_ROOT) & xcopy /y /q .\lib\*.lib $(ACE_INSTALL_PATH)\lib
-    pushd $(ACE_ROOT) & xcopy /y /q .\lib\*.dll $(ACE_INSTALL_PATH)\bin
-    pushd $(ACE_ROOT) & xcopy /y /q .\lib\*.pdb $(ACE_INSTALL_PATH)\bin
+	-@md $(ACE_INSTALL_PATH)\lib
+	-@md $(ACE_INSTALL_PATH)\bin
+	@cd $(ACE_ROOT) && mpc\prj_install.pl $(ACE_INSTALL_PATH) ace
+	@cd $(ACE_ROOT) && copy /y /b .\lib\*.lib $(ACE_INSTALL_PATH)\lib
+	@cd $(ACE_ROOT) && copy /y /b .\lib\*.dll $(ACE_INSTALL_PATH)\bin
+	@cd $(ACE_ROOT) && copy /y /b .\lib\*.pdb $(ACE_INSTALL_PATH)\bin
 
-openssl-build: check_prerequisite
-    pushd $(OPENSSL_SRC) & $(GIT) checkout OpenSSL_1_0_2a
-    pushd $(OPENSSL_SRC) & $(PERL) Configure VC-WIN64A --prefix="$(OPENSSL_ROOT)"
-    pushd $(OPENSSL_SRC) & call ms\do_win64a
-    pushd $(OPENSSL_SRC) & $(MAKE) -f ms\ntdll.mak
+openssl-checkout:
+    @cd $(OPENSSL_SRC) && $(GIT) checkout $(OPENSSL_VERSION)
+
+openssl-build: check_prerequisite openssl-checkout
+	@cd $(OPENSSL_SRC) && $(PERL) Configure VC-WIN64A --prefix="$(OPENSSL_ROOT)" enable-static-engine
+	@cd $(OPENSSL_SRC) && call ms\do_win64a
+    @cd $(OPENSSL_SRC) && $(MAKE) -f ms\nt.mak
+    @cd $(OPENSSL_SRC) && $(MAKE) -f ms\ntdll.mak
 
 openssl-test: openssl-build
-    pushd $(OPENSSL_SRC) & $(MAKE) -f ms\ntdll.mak test
+    @cd $(OPENSSL_SRC) && $(MAKE) -f ms\nt.mak test
+	@cd $(OPENSSL_SRC) && $(MAKE) -f ms\ntdll.mak test
 
 openssl-install: openssl-build
-    pushd $(OPENSSL_SRC) & $(MAKE) -f ms\ntdll.mak install
+    -@md $(OPENSSL_ROOT)\bin
+    -@md $(OPENSSL_ROOT)\lib
+    -@md $(OPENSSL_ROOT)\include\openssl
+    @cd $(OPENSSL_SRC) && $(MAKE) -f ms\ntdll.mak install
+    @copy /y /b $(OPENSSL_SRC)\out32dll\ssleay32.pdb $(OPENSSL_ROOT)\bin
+    @copy /y /b $(OPENSSL_SRC)\out32dll\libeay32.pdb $(OPENSSL_ROOT)\bin
+    @copy /y /b $(OPENSSL_SRC)\out32dll\openssl.pdb $(OPENSSL_ROOT)\bin
+    @copy /y /b $(OPENSSL_SRC)\out32dll\ssleay32.exp $(OPENSSL_ROOT)\lib
+    @copy /y /b $(OPENSSL_SRC)\out32dll\libeay32.exp $(OPENSSL_ROOT)\lib
+    @copy /y /b $(OPENSSL_SRC)\out32\ssleay32.lib $(OPENSSL_ROOT)\lib\ssleay32s.lib
+    @copy /y /b $(OPENSSL_SRC)\out32\libeay32.lib $(OPENSSL_ROOT)\lib\libeay32s.lib
 
-zlib-build: check_prerequisite
-    pushd $(ZLIB_SRC) & $(MAKE) -f win32/Makefile.msc AS=ml64 LOC="-DASMV -DASMINF -I." OBJA="inffasx64.obj gvmat64.obj inffas8664.obj"
+zlib-build: check_prerequisite zlib-checkout
+	@cd $(ZLIB_SRC) && $(MAKE) -f win32/Makefile.msc AS=ml64 LOC="-DASMV -DASMINF -I." OBJA="inffasx64.obj gvmat64.obj inffas8664.obj"
+
+zlib-checkout:
+	@cd $(ZLIB_SRC) && $(GIT) checkout $(ZLIB_VERSION)
 
 zlib-test: zlib-build
-    pushd $(ZLIB_SRC) & $(MAKE) -f win32/Makefile.msc test
-    pushd $(ZLIB_SRC) & $(MAKE) -f win32/Makefile.msc testdll
+	@cd $(ZLIB_SRC) && $(MAKE) -f win32/Makefile.msc test
+	@cd $(ZLIB_SRC) && $(MAKE) -f win32/Makefile.msc testdll
 
 zlib-install: zlib-build
-    -rmdir /s /q $(ZLIB_ROOT)\include
-    -rmdir /s /q $(ZLIB_ROOT)\lib
-    -rmdir /s /q $(ZLIB_ROOT)\bin
-    -mkdir $(ZLIB_ROOT)\include
-    -mkdir $(ZLIB_ROOT)\lib
-    -mkdir $(ZLIB_ROOT)\bin
-    xcopy /y /q $(ZLIB_SRC)\zconf.h $(ZLIB_ROOT)\include
-    xcopy /y /q $(ZLIB_SRC)\zlib.h  $(ZLIB_ROOT)\include
-    xcopy /y /q $(ZLIB_SRC)\zlib.lib  $(ZLIB_ROOT)\lib
-    xcopy /y /q $(ZLIB_SRC)\zlib.map  $(ZLIB_ROOT)\lib
-    xcopy /y /q $(ZLIB_SRC)\zlib.pdb  $(ZLIB_ROOT)\lib
-    xcopy /y /q $(ZLIB_SRC)\zdll.exp  $(ZLIB_ROOT)\lib
-    xcopy /y /q $(ZLIB_SRC)\zdll.lib  $(ZLIB_ROOT)\lib
-    xcopy /y /q $(ZLIB_SRC)\zlib1.dll $(ZLIB_ROOT)\bin
-    xcopy /y /q $(ZLIB_SRC)\zlib1.pdb $(ZLIB_ROOT)\bin
+	-@rd /s /q $(ZLIB_ROOT)\include
+	-@rd /s /q $(ZLIB_ROOT)\lib
+	-@rd /s /q $(ZLIB_ROOT)\bin
+	-@md $(ZLIB_ROOT)\include
+	-@md $(ZLIB_ROOT)\lib
+	-@md $(ZLIB_ROOT)\bin
+	@copy /y /b $(ZLIB_SRC)\zconf.h $(ZLIB_ROOT)\include
+	@copy /y /b $(ZLIB_SRC)\zlib.h  $(ZLIB_ROOT)\include
+	@copy /y /b $(ZLIB_SRC)\zlib.lib  $(ZLIB_ROOT)\lib
+	@copy /y /b $(ZLIB_SRC)\zlib.map  $(ZLIB_ROOT)\lib
+	@copy /y /b $(ZLIB_SRC)\zlib.pdb  $(ZLIB_ROOT)\lib
+	@copy /y /b $(ZLIB_SRC)\zdll.exp  $(ZLIB_ROOT)\lib
+	@copy /y /b $(ZLIB_SRC)\zdll.lib  $(ZLIB_ROOT)\lib
+	@copy /y /b $(ZLIB_SRC)\zlib1.dll $(ZLIB_ROOT)\bin
+	@copy /y /b $(ZLIB_SRC)\zlib1.pdb $(ZLIB_ROOT)\bin
 
 # sync local and origin from upstream
 sync: check_prerequisite
-    pushd $(ACE_SRC) & $(GIT) fetch upstream
-    pushd $(ACE_SRC) & $(GIT) checkout master
-    pushd $(ACE_SRC) & $(GIT) merge upstream/master
-    pushd $(ACE_SRC) & $(GIT) push origin master
-    pushd $(ACE_SRC)\ACE\MPC & $(GIT) merge origin/master
-    pushd $(OPENSSL_SRC) & $(GIT) fetch upstream
-    pushd $(OPENSSL_SRC) & $(GIT) checkout master
-    pushd $(OPENSSL_SRC) & $(GIT) merge upstream/master
-    pushd $(OPENSSL_SRC) & $(GIT) push origin master
-    pushd $(ZLIB_SRC) & $(GIT) fetch upstream
-    pushd $(ZLIB_SRC) & $(GIT) checkout master
-    pushd $(ZLIB_SRC) & $(GIT) merge upstream/master
-    pushd $(ZLIB_SRC) & $(GIT) push origin master
+	@cd $(ACE_SRC) && $(GIT) fetch upstream
+	@cd $(ACE_SRC) && $(GIT) checkout master
+	@cd $(ACE_SRC) && $(GIT) merge upstream/master
+	@cd $(ACE_SRC) && $(GIT) push origin master
+	@cd $(ACE_SRC)\ACE\MPC && $(GIT) merge origin/master
+	@cd $(OPENSSL_SRC) && $(GIT) fetch upstream
+	@cd $(OPENSSL_SRC) && $(GIT) checkout master
+	@cd $(OPENSSL_SRC) && $(GIT) merge upstream/master
+	@cd $(OPENSSL_SRC) && $(GIT) push origin master
+	@cd $(ZLIB_SRC) && $(GIT) fetch upstream
+	@cd $(ZLIB_SRC) && $(GIT) checkout master
+	@cd $(ZLIB_SRC) && $(GIT) merge upstream/master
+	@cd $(ZLIB_SRC) && $(GIT) push origin master
 
 # cleanup
 clean:
-    -del .prerequisite
-	-rmdir /s /q $(LIBRARY)
-	-rmdir /s /q $(SOURCE)
+	-@del .prerequisite
+	-@rd /s /q $(LIBRARY)
+	-@rd /s /q $(SOURCE)

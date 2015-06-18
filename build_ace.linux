@@ -1,0 +1,171 @@
+# Makefile for build-ace (x64, linux)
+#
+# required sudo, because it will install libraries to
+#
+#    /usr/local/stow/ace
+#    /usr/local/stow/openssl
+#    /usr/local/stow/zlib
+#
+# and create symlink to /usr/local using GNU stow (https://www.gnu.org/software/stow/)
+#
+# you should install below packages
+#    sudo apt-get install git perl gcc g++ stow
+#
+# Usage:
+#   make -f build-ace.linux clone zlib-install openssl-install ace-install
+
+GIT = git
+PERL = perl
+GCC = gcc
+G++ = g++
+STOW = stow
+
+# set version
+ACE_VERSION = master
+OPENSSL_VERSION = OpenSSL_1_0_2a
+ZLIB_VERSION = master
+
+# set configure options
+ACE_CONFIGURE_OPTION = -type gnuace -features "ssl=1,zlib=1" -genins -value_template "build64bit=true"
+ACE_CONFIGURE_STATIC = -static -name_modifier *_Static
+
+# set origins
+ATCD_ORIGIN = https://github.com/sphawk/ATCD.git
+OPENSSL_ORIGIN = https://github.com/sphawk/openssl.git
+ZLIB_ORIGIN = https://github.com/sphawk/zlib.git
+
+# set upstreams
+ATCD_UPSTREAM = https://github.com/DOCGroup/ATCD.git
+OPENSSL_UPSTREAM = https://github.com/openssl/openssl.git
+ZLIB_UPSTREAM = https://github.com/madler/zlib.git
+MPC_UPSTREAM = https://github.com/DOCGroup/MPC.git
+
+# set source directories
+SOURCE = $(CURDIR)/source
+ZLIB_SRC = $(SOURCE)/zlib
+OPENSSL_SRC = $(SOURCE)/openssl
+ACE_SRC = $(SOURCE)/ATCD
+ACE_ROOT = $(SOURCE)/ATCD/ACE
+
+# set destination directories
+LIBRARY_ROOT = /usr/local
+LIBRARY_STOW = $(LIBRARY_ROOT)/stow
+ZLIB_ROOT = $(LIBRARY_STOW)/zlib
+OPENSSL_ROOT = $(LIBRARY_STOW)/openssl
+ACE_INSTALL_PATH = $(LIBRARY_STOW)/ace
+
+# targets
+
+check_prerequisite: prerequisite
+
+prerequisite:
+	$(GIT) --version
+	$(PERL) --version
+	$(GCC) --version
+	$(G++) --version
+	$(STOW) --version
+	echo "all passsed" > prerequisite
+
+clone: check_prerequisite
+	-@mkdir $(SOURCE)
+	@cd $(SOURCE) && $(GIT) clone $(ATCD_ORIGIN)
+	@cd $(SOURCE) && $(GIT) clone $(OPENSSL_ORIGIN)
+	@cd $(SOURCE) && $(GIT) clone $(ZLIB_ORIGIN)
+	@cd $(ACE_ROOT) && $(GIT) clone $(MPC_UPSTREAM)
+	@cd $(ACE_SRC) && $(GIT) remote add upstream $(ATCD_UPSTREAM)
+	@cd $(OPENSSL_SRC) && $(GIT) remote add upstream $(OPENSSL_UPSTREAM)
+	@cd $(ZLIB_SRC) && $(GIT) remote add upstream $(ZLIB_UPSTREAM)
+
+ace-checkout:
+	@cd $(ACE_ROOT) && $(GIT) checkout $(ACE_VERSION)
+
+$(ACE_ROOT)/ace/GNUmakefile:
+	@export ACE_ROOT=$(ACE_ROOT)
+	@export SSL_ROOT=$(LIBRARY_ROOT)
+	@export ZLIB_ROOT=$(LIBRARY_ROOT)
+	@echo "#include \"config-linux.h\"" > $(ACE_ROOT)/ace/config.h
+	@echo "include $(ACE_ROOT)/include/makeinclude/platform_linux.GNU" > $(ACE_ROOT)/include/makeinclude/platform_macros.GNU
+	@echo "INSTALL_PREFIX=/usr/local/stow/ace" >> $(ACE_ROOT)/include/makeinclude/platform_macros.GNU
+	@echo "ssl=1\nzlib=1" >> $(ACE_ROOT)/include/makeinclude/platform_macros.GNU
+	@cd $(ACE_ROOT) && bin/mwc.pl $(ACE_CONFIGURE_OPTION) ace/ace.mwc
+
+ace-build-configure: ace-checkout $(ACE_ROOT)/ace/GNUmakefile
+
+ace-clean-configure:
+	@cd $(ACE_ROOT)/ace && rm -rf GNUmakefile*
+
+ace-build: check_prerequisite ace-build-configure
+	@export ACE_ROOT=$(ACE_ROOT)
+	@export SSL_ROOT=$(LIBRARY_ROOT)
+	@export ZLIB_ROOT=$(LIBRARY_ROOT)
+	@cd $(ACE_ROOT)/ace && $(MAKE)
+
+ace-install: ace-build
+	@cd $(ACE_ROOT)/ace && sudo -E $(MAKE) install
+	@cd $(LIBRARY_STOW) && sudo -E $(STOW) ace
+
+ace-test: ace-install
+	@cd $(ACE_ROOT) && bin/mwc.pl $(ACE_CONFIGURE_OPTION) tests/tests.mwc
+	@cd $(ACE_ROOT)/tests && $(MAKE)
+	@cd $(ACE_ROOT)/tests && ./run_test.pl
+
+ace-example: ace-install
+	@cd $(ACE_ROOT) && bin/mwc.pl $(ACE_CONFIGURE_OPTION) examples/examples.mwc
+	@cd $(ACE_ROOT)/examples && $(MAKE)
+
+openssl-checkout:
+	@cd $(OPENSSL_SRC) && $(GIT) checkout $(OPENSSL_VERSION)
+
+openssl-build: check_prerequisite openssl-checkout
+	@cd $(OPENSSL_SRC) && ./config --prefix=$(OPENSSL_ROOT) shared
+	@cd $(OPENSSL_SRC) && $(MAKE)
+
+openssl-test: openssl-build
+	@cd $(OPENSSL_SRC) && $(MAKE) test
+
+openssl-install: openssl-build
+	@cd $(OPENSSL_SRC) && sudo -E $(MAKE) install
+	@cd $(LIBRARY_STOW) && sudo $(STOW) openssl
+
+zlib-checkout:
+	@cd $(ZLIB_SRC) && $(GIT) checkout $(ZLIB_VERSION)
+
+zlib-build: check_prerequisite zlib-checkout
+	@cd $(ZLIB_SRC) && ./configure --prefix=$(ZLIB_ROOT) --64
+	@cd $(ZLIB_SRC) && $(MAKE)
+
+zlib-test: zlib-build
+	@cd $(ZLIB_SRC) && $(MAKE) test
+
+zlib-install: zlib-build
+	@cd $(ZLIB_SRC) && sudo -E $(MAKE) install
+	@cd $(LIBRARY_STOW) && sudo $(STOW) zlib
+
+# sync local and origin from upstream
+sync: check_prerequisite
+	@cd $(ACE_SRC) && $(GIT) fetch upstream
+	@cd $(ACE_SRC) && $(GIT) checkout master
+	@cd $(ACE_SRC) && $(GIT) merge upstream/master
+	@cd $(ACE_SRC) && $(GIT) push origin master
+	@cd $(ACE_SRC)\ACE\MPC && $(GIT) merge origin/master
+	@cd $(OPENSSL_SRC) && $(GIT) fetch upstream
+	@cd $(OPENSSL_SRC) && $(GIT) checkout master
+	@cd $(OPENSSL_SRC) && $(GIT) merge upstream/master
+	@cd $(OPENSSL_SRC) && $(GIT) push origin master
+	@cd $(ZLIB_SRC) && $(GIT) fetch upstream
+	@cd $(ZLIB_SRC) && $(GIT) checkout master
+	@cd $(ZLIB_SRC) && $(GIT) merge upstream/master
+	@cd $(ZLIB_SRC) && $(GIT) push origin master
+
+# cleanup
+libclean:
+	-@cd $(LIBRARY_STOW) && sudo $(STOW) --delete zlib
+	-@cd $(LIBRARY_STOW) && sudo $(STOW) --delete openssl
+	-@cd $(LIBRARY_STOW) && sudo $(STOW) --delete ace
+	-@sudo rm -rf $(ZLIB_ROOT)
+	-@sudo rm -rf $(OPENSSL_ROOT)
+	-@sudo rm -rf $(ACE_INSTALL_PATH)
+
+clean: libclean
+	-@rm prerequisite
+	-@rm -rf $(SOURCE)
