@@ -66,9 +66,6 @@ ace-checkout:
 	@cd $(ACE_ROOT) && $(GIT) checkout $(ACE_VERSION)
 
 $(ACE_ROOT)/ace/GNUmakefile:
-	@export ACE_ROOT=$(ACE_ROOT)
-	@export SSL_ROOT=$(LIBRARY_ROOT)
-	@export ZLIB_ROOT=$(LIBRARY_ROOT)
 	@echo "#include \"config-linux.h\"" > $(ACE_ROOT)/ace/config.h
 	@echo "include $(ACE_ROOT)/include/makeinclude/platform_linux.GNU" > $(ACE_ROOT)/include/makeinclude/platform_macros.GNU
 	@echo "INSTALL_PREFIX=$(ACE_INSTALL_PATH)" >> $(ACE_ROOT)/include/makeinclude/platform_macros.GNU
@@ -87,7 +84,7 @@ ace-build: check_prerequisite ace-build-configure
 	@cd $(ACE_ROOT)/ace && $(MAKE)
 
 ace-install: ace-build
-	@cd $(ACE_ROOT)/ace && sudo -E $(MAKE) install
+	@cd $(ACE_ROOT)/ace && $(MAKE) install
 
 ace-test: ace-install
 	@cd $(ACE_ROOT) && bin/mwc.pl $(ACE_CONFIGURE_OPTION) tests/tests.mwc
@@ -109,7 +106,7 @@ openssl-test: openssl-build
 	@cd $(OPENSSL_SRC) && $(MAKE) test
 
 openssl-install: openssl-build
-	@cd $(OPENSSL_SRC) && sudo -E $(MAKE) install
+	@cd $(OPENSSL_SRC) && $(MAKE) install
 
 zlib-checkout:
 	@cd $(ZLIB_SRC) && $(GIT) checkout $(ZLIB_VERSION)
@@ -122,7 +119,7 @@ zlib-test: zlib-build
 	@cd $(ZLIB_SRC) && $(MAKE) test
 
 zlib-install: zlib-build
-	@cd $(ZLIB_SRC) && sudo -E $(MAKE) install
+	@cd $(ZLIB_SRC) && $(MAKE) install
 
 # sync local and origin from upstream
 sync: check_prerequisite
@@ -130,7 +127,7 @@ sync: check_prerequisite
 	@cd $(ACE_SRC) && $(GIT) checkout master
 	@cd $(ACE_SRC) && $(GIT) merge upstream/master
 	@cd $(ACE_SRC) && $(GIT) push origin master
-	@cd $(ACE_SRC)\ACE\MPC && $(GIT) merge origin/master
+	@cd $(ACE_SRC)/ACE/MPC && $(GIT) merge origin/master
 	@cd $(OPENSSL_SRC) && $(GIT) fetch upstream
 	@cd $(OPENSSL_SRC) && $(GIT) checkout master
 	@cd $(OPENSSL_SRC) && $(GIT) merge upstream/master
@@ -142,7 +139,7 @@ sync: check_prerequisite
 
 # cleanup
 libclean:
-	-@sudo rm -rf $(LIBRARY_ROOT)
+	-@rm -rf $(LIBRARY_ROOT)
 
 clean: libclean
 	-@rm prerequisite
