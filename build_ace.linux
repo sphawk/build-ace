@@ -1,16 +1,5 @@
 # Makefile for build-ace (x64, linux)
 #
-# required sudo, because it will install libraries to
-#
-#    /usr/local/stow/ace
-#    /usr/local/stow/openssl
-#    /usr/local/stow/zlib
-#
-# and create symlink to /usr/local using GNU stow (https://www.gnu.org/software/stow/)
-#
-# you should install below packages
-#    sudo apt-get install git perl gcc g++ stow
-#
 # Usage:
 #   make -f build-ace.linux clone zlib-install openssl-install ace-install
 
@@ -18,11 +7,10 @@ GIT = git
 PERL = perl
 GCC = gcc
 G++ = g++
-STOW = stow
 
 # set version
 ACE_VERSION = master
-OPENSSL_VERSION = OpenSSL_1_0_2a
+OPENSSL_VERSION = OpenSSL_1_0_2c
 ZLIB_VERSION = master
 
 # set configure options
@@ -48,11 +36,10 @@ ACE_SRC = $(SOURCE)/ATCD
 ACE_ROOT = $(SOURCE)/ATCD/ACE
 
 # set destination directories
-LIBRARY_ROOT = /usr/local
-LIBRARY_STOW = $(LIBRARY_ROOT)/stow
-ZLIB_ROOT = $(LIBRARY_STOW)/zlib
-OPENSSL_ROOT = $(LIBRARY_STOW)/openssl
-ACE_INSTALL_PATH = $(LIBRARY_STOW)/ace
+LIBRARY_ROOT = $(CURDIR)/library
+ZLIB_ROOT = $(LIBRARY_ROOT)/zlib
+OPENSSL_ROOT = $(LIBRARY_ROOT)/openssl
+ACE_INSTALL_PATH = $(LIBRARY_ROOT)/ace
 
 # targets
 
@@ -63,7 +50,6 @@ prerequisite:
 	$(PERL) --version
 	$(GCC) --version
 	$(G++) --version
-	$(STOW) --version
 	echo "all passsed" > prerequisite
 
 clone: check_prerequisite
@@ -85,7 +71,7 @@ $(ACE_ROOT)/ace/GNUmakefile:
 	@export ZLIB_ROOT=$(LIBRARY_ROOT)
 	@echo "#include \"config-linux.h\"" > $(ACE_ROOT)/ace/config.h
 	@echo "include $(ACE_ROOT)/include/makeinclude/platform_linux.GNU" > $(ACE_ROOT)/include/makeinclude/platform_macros.GNU
-	@echo "INSTALL_PREFIX=/usr/local/stow/ace" >> $(ACE_ROOT)/include/makeinclude/platform_macros.GNU
+	@echo "INSTALL_PREFIX=$(ACE_INSTALL_PATH)" >> $(ACE_ROOT)/include/makeinclude/platform_macros.GNU
 	@echo "ssl=1\nzlib=1" >> $(ACE_ROOT)/include/makeinclude/platform_macros.GNU
 	@cd $(ACE_ROOT) && bin/mwc.pl $(ACE_CONFIGURE_OPTION) ace/ace.mwc
 
@@ -102,7 +88,6 @@ ace-build: check_prerequisite ace-build-configure
 
 ace-install: ace-build
 	@cd $(ACE_ROOT)/ace && sudo -E $(MAKE) install
-	@cd $(LIBRARY_STOW) && sudo -E $(STOW) ace
 
 ace-test: ace-install
 	@cd $(ACE_ROOT) && bin/mwc.pl $(ACE_CONFIGURE_OPTION) tests/tests.mwc
@@ -125,7 +110,6 @@ openssl-test: openssl-build
 
 openssl-install: openssl-build
 	@cd $(OPENSSL_SRC) && sudo -E $(MAKE) install
-	@cd $(LIBRARY_STOW) && sudo $(STOW) openssl
 
 zlib-checkout:
 	@cd $(ZLIB_SRC) && $(GIT) checkout $(ZLIB_VERSION)
@@ -139,7 +123,6 @@ zlib-test: zlib-build
 
 zlib-install: zlib-build
 	@cd $(ZLIB_SRC) && sudo -E $(MAKE) install
-	@cd $(LIBRARY_STOW) && sudo $(STOW) zlib
 
 # sync local and origin from upstream
 sync: check_prerequisite
@@ -159,12 +142,7 @@ sync: check_prerequisite
 
 # cleanup
 libclean:
-	-@cd $(LIBRARY_STOW) && sudo $(STOW) --delete zlib
-	-@cd $(LIBRARY_STOW) && sudo $(STOW) --delete openssl
-	-@cd $(LIBRARY_STOW) && sudo $(STOW) --delete ace
-	-@sudo rm -rf $(ZLIB_ROOT)
-	-@sudo rm -rf $(OPENSSL_ROOT)
-	-@sudo rm -rf $(ACE_INSTALL_PATH)
+	-@sudo rm -rf $(LIBRARY_ROOT)
 
 clean: libclean
 	-@rm prerequisite
