@@ -53,10 +53,10 @@ check_prerequisite: .prerequisite
 clone: check_prerequisite
 	-@md $(SOURCE)
 	-@md $(LIBRARY)
-	@cd $(SOURCE) && $(GIT) clone --depth 15 $(ATCD_ORIGIN)
-	@cd $(SOURCE) && $(GIT) clone --depth 15 $(OPENSSL_ORIGIN)
-	@cd $(SOURCE) && $(GIT) clone --depth 15 $(ZLIB_ORIGIN)
-	@cd $(ACE_ROOT) && $(GIT) clone --depth 15 $(MPC_UPSTREAM)
+	@cd $(SOURCE) && $(GIT) clone $(ATCD_ORIGIN)
+	@cd $(SOURCE) && $(GIT) clone $(OPENSSL_ORIGIN)
+	@cd $(SOURCE) && $(GIT) clone $(ZLIB_ORIGIN)
+	@cd $(ACE_ROOT) && $(GIT) clone $(MPC_UPSTREAM)
 	@cd $(ACE_SRC) && $(GIT) remote add upstream $(ATCD_UPSTREAM)
 	@cd $(OPENSSL_SRC) && $(GIT) remote add upstream $(OPENSSL_UPSTREAM)
 	@cd $(ZLIB_SRC) && $(GIT) remote add upstream $(ZLIB_UPSTREAM)
@@ -193,16 +193,16 @@ sync: check_prerequisite
 	@cd $(ACE_SRC) && $(GIT) fetch upstream
 	@cd $(ACE_SRC) && $(GIT) checkout master
 	@cd $(ACE_SRC) && $(GIT) merge upstream/master
-	@cd $(ACE_SRC) && $(GIT) push origin master
-	@cd $(ACE_SRC)\ACE\MPC && $(GIT) merge origin/master
+	@cd $(ACE_SRC) && $(GIT) push --follow-tags origin master
+	@cd $(ACE_SRC)/ACE/MPC && $(GIT) merge origin/master
 	@cd $(OPENSSL_SRC) && $(GIT) fetch upstream
 	@cd $(OPENSSL_SRC) && $(GIT) checkout master
 	@cd $(OPENSSL_SRC) && $(GIT) merge upstream/master
-	@cd $(OPENSSL_SRC) && $(GIT) push origin master
+	@cd $(OPENSSL_SRC) && $(GIT) push --follow-tags origin master
 	@cd $(ZLIB_SRC) && $(GIT) fetch upstream
 	@cd $(ZLIB_SRC) && $(GIT) checkout master
 	@cd $(ZLIB_SRC) && $(GIT) merge upstream/master
-	@cd $(ZLIB_SRC) && $(GIT) push origin master
+	@cd $(ZLIB_SRC) && $(GIT) push --follow-tags origin master
 
 # cleanup
 libclean:
