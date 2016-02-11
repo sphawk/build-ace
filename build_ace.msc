@@ -9,11 +9,11 @@ MSBUILD = msbuild
 
 # set version
 ACE_VERSION = master
-OPENSSL_VERSION = OpenSSL_1_0_2c
+OPENSSL_VERSION = OpenSSL_1_0_2f
 ZLIB_VERSION = master
 
 # set configure options
-ACE_CONFIGURE_OPTION = -type vc12 -features "qos=1,ssl=1,zlib=1" -genins -value_template "multiprocessorcompilation=true"
+ACE_CONFIGURE_OPTION = -type vc14 -features "qos=1,ssl=1,zlib=1" -genins -value_template "multiprocessorcompilation=true"
 ACE_CONFIGURE_STATIC = -static -name_modifier *_Static
 
 # set origins
@@ -46,17 +46,17 @@ check_prerequisite: .prerequisite
 
 .prerequisite:
 	$(GIT) --version
-	$(PERL) --version | find "ActiveState"
+	$(PERL) --version
 	$(MSBUILD) /version
 	echo "all passsed" > .prerequisite
 
 clone: check_prerequisite
 	-@md $(SOURCE)
 	-@md $(LIBRARY)
-	@cd $(SOURCE) && $(GIT) clone $(ATCD_ORIGIN)
-	@cd $(SOURCE) && $(GIT) clone $(OPENSSL_ORIGIN)
-	@cd $(SOURCE) && $(GIT) clone $(ZLIB_ORIGIN)
-	@cd $(ACE_ROOT) && $(GIT) clone $(MPC_UPSTREAM)
+	@cd $(SOURCE) && $(GIT) clone --depth 15 $(ATCD_ORIGIN)
+	@cd $(SOURCE) && $(GIT) clone --depth 15 $(OPENSSL_ORIGIN)
+	@cd $(SOURCE) && $(GIT) clone --depth 15 $(ZLIB_ORIGIN)
+	@cd $(ACE_ROOT) && $(GIT) clone --depth 15 $(MPC_UPSTREAM)
 	@cd $(ACE_SRC) && $(GIT) remote add upstream $(ATCD_UPSTREAM)
 	@cd $(OPENSSL_SRC) && $(GIT) remote add upstream $(OPENSSL_UPSTREAM)
 	@cd $(ZLIB_SRC) && $(GIT) remote add upstream $(ZLIB_UPSTREAM)
@@ -130,7 +130,7 @@ ace-example: ace-build $(ACE_ROOT)\examples\examples.sln $(ACE_ROOT)\examples\ex
 ace-install: ace-build
 	-@md $(ACE_INSTALL_PATH)\lib
 	-@md $(ACE_INSTALL_PATH)\bin
-	@cd $(ACE_ROOT) && mpc\prj_install.pl $(ACE_INSTALL_PATH) ace
+	@cd $(ACE_ROOT) && mpc\prj_install.pl $(ACE_INSTALL_PATH)\include ace
 	@cd $(ACE_ROOT) && copy /y /b .\lib\*.lib $(ACE_INSTALL_PATH)\lib
 	@cd $(ACE_ROOT) && copy /y /b .\lib\*.dll $(ACE_INSTALL_PATH)\bin
 	@cd $(ACE_ROOT) && copy /y /b .\lib\*.pdb $(ACE_INSTALL_PATH)\bin
@@ -175,11 +175,11 @@ zlib-install: zlib-build
 	-@rd /s /q $(ZLIB_ROOT)\include
 	-@rd /s /q $(ZLIB_ROOT)\lib
 	-@rd /s /q $(ZLIB_ROOT)\bin
-	-@md $(ZLIB_ROOT)\include
+	-@md $(ZLIB_ROOT)\include\zlib
 	-@md $(ZLIB_ROOT)\lib
 	-@md $(ZLIB_ROOT)\bin
-	@copy /y /b $(ZLIB_SRC)\zconf.h $(ZLIB_ROOT)\include
-	@copy /y /b $(ZLIB_SRC)\zlib.h  $(ZLIB_ROOT)\include
+	@copy /y /b $(ZLIB_SRC)\zconf.h $(ZLIB_ROOT)\include\zlib
+	@copy /y /b $(ZLIB_SRC)\zlib.h  $(ZLIB_ROOT)\include\zlib
 	@copy /y /b $(ZLIB_SRC)\zlib.lib  $(ZLIB_ROOT)\lib
 	@copy /y /b $(ZLIB_SRC)\zlib.map  $(ZLIB_ROOT)\lib
 	@copy /y /b $(ZLIB_SRC)\zlib.pdb  $(ZLIB_ROOT)\lib
@@ -205,6 +205,9 @@ sync: check_prerequisite
 	@cd $(ZLIB_SRC) && $(GIT) push origin master
 
 # cleanup
+libclean:
+	-@rd /s /q $(LIBRARY)
+
 clean:
 	-@del .prerequisite
 	-@rd /s /q $(LIBRARY)

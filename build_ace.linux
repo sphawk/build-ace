@@ -10,7 +10,7 @@ G++ = g++
 
 # set version
 ACE_VERSION = master
-OPENSSL_VERSION = OpenSSL_1_0_2c
+OPENSSL_VERSION = OpenSSL_1_0_2f
 ZLIB_VERSION = master
 
 # set configure options
