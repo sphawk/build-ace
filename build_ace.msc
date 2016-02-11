@@ -193,18 +193,18 @@ sync: check_prerequisite
 	@cd $(ACE_SRC) && $(GIT) fetch --tags upstream
 	@cd $(ACE_SRC) && $(GIT) checkout master
 	@cd $(ACE_SRC) && $(GIT) merge upstream/master
-	@cd $(ACE_SRC) && $(GIT) push --follow-tags origin master
+	@cd $(ACE_SRC) && $(GIT) push --tags --force origin master
 	@cd $(ACE_SRC)/ACE/MPC && $(GIT) fetch --tags origin
 	@cd $(ACE_SRC)/ACE/MPC && $(GIT) checkout master
 	@cd $(ACE_SRC)/ACE/MPC && $(GIT) merge origin/master
 	@cd $(OPENSSL_SRC) && $(GIT) fetch --tags upstream
 	@cd $(OPENSSL_SRC) && $(GIT) checkout master
 	@cd $(OPENSSL_SRC) && $(GIT) merge upstream/master
-	@cd $(OPENSSL_SRC) && $(GIT) push --follow-tags origin master
+	@cd $(OPENSSL_SRC) && $(GIT) push --tags --force origin master
 	@cd $(ZLIB_SRC) && $(GIT) fetch --tags upstream
 	@cd $(ZLIB_SRC) && $(GIT) checkout master
 	@cd $(ZLIB_SRC) && $(GIT) merge upstream/master
-	@cd $(ZLIB_SRC) && $(GIT) push --follow-tags origin master
+	@cd $(ZLIB_SRC) && $(GIT) push --tags --force origin master
 
 # cleanup
 libclean:
