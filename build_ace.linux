@@ -15,7 +15,7 @@ ZLIB_VERSION = master
 
 # set configure options
 ACE_CONFIGURE_OPTION = -type gnuace -features "ssl=1,zlib=1" -genins -value_template "build64bit=true"
-ACE_CONFIGURE_STATIC = -static -name_modifier *_Static
+ACE_CONFIGURE_STATIC = -static -name_modifier *Static
 
 # set origins
 ATCD_ORIGIN = https://github.com/sphawk/ATCD.git
@@ -43,6 +43,7 @@ ACE_INSTALL_PATH = $(LIBRARY_ROOT)/ace
 
 # targets
 
+.PHONY: check_prerequisite
 check_prerequisite: prerequisite
 
 prerequisite:
@@ -52,6 +53,7 @@ prerequisite:
 	$(G++) --version
 	echo "all passsed" > prerequisite
 
+.PHONY : clone
 clone: check_prerequisite
 	-@mkdir $(SOURCE)
 	@cd $(SOURCE) && $(GIT) clone $(ATCD_ORIGIN)
@@ -62,66 +64,89 @@ clone: check_prerequisite
 	@cd $(OPENSSL_SRC) && $(GIT) remote add upstream $(OPENSSL_UPSTREAM)
 	@cd $(ZLIB_SRC) && $(GIT) remote add upstream $(ZLIB_UPSTREAM)
 
+.PHONY: ace-checkout
 ace-checkout:
 	@cd $(ACE_ROOT) && $(GIT) checkout $(ACE_VERSION)
 
-$(ACE_ROOT)/ace/GNUmakefile:
+.PHONY: ace-set-configure
+ace-set-configure: ace-checkout
 	@echo "#include \"config-linux.h\"" > $(ACE_ROOT)/ace/config.h
 	@echo "include $(ACE_ROOT)/include/makeinclude/platform_linux.GNU" > $(ACE_ROOT)/include/makeinclude/platform_macros.GNU
 	@echo "INSTALL_PREFIX=$(ACE_INSTALL_PATH)" >> $(ACE_ROOT)/include/makeinclude/platform_macros.GNU
 	@echo "ssl=1\nzlib=1" >> $(ACE_ROOT)/include/makeinclude/platform_macros.GNU
-	@cd $(ACE_ROOT) && bin/mwc.pl $(ACE_CONFIGURE_OPTION) ace/ace.mwc
 
-ace-build-configure: ace-checkout $(ACE_ROOT)/ace/GNUmakefile
+$(ACE_ROOT)/ace/GNUmakefile: ace-set-configure
+	@export ACE_ROOT=$(ACE_ROOT); export SSL_ROOT=$(LIBRARY_ROOT); export ZLIB_ROOT=$(LIBRARY_ROOT); cd $(ACE_ROOT) && bin/mwc.pl $(ACE_CONFIGURE_OPTION) ace/ace.mwc
 
+$(ACE_ROOT)/ace/GNUmakefileStatic: ace-set-configure
+	@export ACE_ROOT=$(ACE_ROOT); export SSL_ROOT=$(LIBRARY_ROOT); export ZLIB_ROOT=$(LIBRARY_ROOT); cd $(ACE_ROOT) && bin/mwc.pl $(ACE_CONFIGURE_OPTION) $(ACE_CONFIGURE_STATIC) ace/ace.mwc
+
+.PHONY: ace-build-configure
+ace-build-configure: $(ACE_ROOT)/ace/GNUmakefile $(ACE_ROOT)/ace/GNUmakefileStatic
+
+.PHONY: ace-clean-configure
 ace-clean-configure:
 	@cd $(ACE_ROOT)/ace && rm -rf GNUmakefile*
 
+.PHONY: ace-build
 ace-build: check_prerequisite ace-build-configure
-	@export ACE_ROOT=$(ACE_ROOT)
-	@export SSL_ROOT=$(LIBRARY_ROOT)
-	@export ZLIB_ROOT=$(LIBRARY_ROOT)
-	@cd $(ACE_ROOT)/ace && $(MAKE)
+	@export ACE_ROOT=$(ACE_ROOT); export SSL_ROOT=$(LIBRARY_ROOT); export ZLIB_ROOT=$(LIBRARY_ROOT); cd $(ACE_ROOT)/ace && $(MAKE) -f GNUmakefile && $(MAKE) -f GNUmakefileStatic
 
+.PHONY: ace-clean
+ace-clean: 
+	@export ACE_ROOT=$(ACE_ROOT); export SSL_ROOT=$(LIBRARY_ROOT); export ZLIB_ROOT=$(LIBRARY_ROOT); cd $(ACE_ROOT)/ace && $(MAKE) -f GNUmakefile clean && $(MAKE) -f GNUmakefileStatic clean
+
+.PHONY: ace-install
 ace-install: ace-build
-	@cd $(ACE_ROOT)/ace && $(MAKE) install
+	@export ACE_ROOT=$(ACE_ROOT); export SSL_ROOT=$(LIBRARY_ROOT); export ZLIB_ROOT=$(LIBRARY_ROOT); cd $(ACE_ROOT)/ace && $(MAKE) -f GNUmakefile install && $(MAKE) -f GNUmakefileStatic install
 
+.PHONY: ace-test
 ace-test: ace-install
 	@cd $(ACE_ROOT) && bin/mwc.pl $(ACE_CONFIGURE_OPTION) tests/tests.mwc
 	@cd $(ACE_ROOT)/tests && $(MAKE)
 	@cd $(ACE_ROOT)/tests && ./run_test.pl
 
+.PHONY: ace-example
 ace-example: ace-install
 	@cd $(ACE_ROOT) && bin/mwc.pl $(ACE_CONFIGURE_OPTION) examples/examples.mwc
 	@cd $(ACE_ROOT)/examples && $(MAKE)
 
+.PHONY: openssl-checkout
 openssl-checkout:
 	@cd $(OPENSSL_SRC) && $(GIT) checkout $(OPENSSL_VERSION)
 
+.PHONY: openssl-build
 openssl-build: check_prerequisite openssl-checkout
 	@cd $(OPENSSL_SRC) && ./config --prefix=$(OPENSSL_ROOT) shared
 	@cd $(OPENSSL_SRC) && $(MAKE)
 
+.PHONY: openssl-test
 openssl-test: openssl-build
 	@cd $(OPENSSL_SRC) && $(MAKE) test
 
+.PHONY: openssl-install
 openssl-install: openssl-build
 	@cd $(OPENSSL_SRC) && $(MAKE) install
 
+.PHONY: zlib-checkout
 zlib-checkout:
 	@cd $(ZLIB_SRC) && $(GIT) checkout $(ZLIB_VERSION)
 
+.PHONY: zlib-build
 zlib-build: check_prerequisite zlib-checkout
 	@cd $(ZLIB_SRC) && ./configure --prefix=$(ZLIB_ROOT) --64
 	@cd $(ZLIB_SRC) && $(MAKE)
 
+.PHONY: zlib-test
 zlib-test: zlib-build
 	@cd $(ZLIB_SRC) && $(MAKE) test
 
+.PHONY: zlib-install
 zlib-install: zlib-build
 	@cd $(ZLIB_SRC) && $(MAKE) install
 
 # sync local and origin from upstream
+.PHONY: sync
 sync: check_prerequisite
 	@cd $(ACE_SRC) && $(GIT) fetch --tags upstream
 	@cd $(ACE_SRC) && $(GIT) checkout master
@@ -140,9 +165,12 @@ sync: check_prerequisite
 	@cd $(ZLIB_SRC) && $(GIT) push --tags --force origin master
 
 # cleanup
+.PHONY: libclean
 libclean:
 	-@rm -rf $(LIBRARY_ROOT)
 
+.PHONY: clean
 clean: libclean
 	-@rm prerequisite
 	-@rm -rf $(SOURCE)
+
