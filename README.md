@@ -3,14 +3,19 @@ build-ace
 
 build script for ace/openssl/zlib
 
+## default version
+* ace: master
+* zlib: master
+* openssl: 1.0.2-stable
+
 ### Windows
 
 ## Pre-requisites
 * Visual Studio 2015 Community Edition
-* [perl](http://www.activestate.com/activeperl)
-* [git](http://git-scm.com/)
+* [git](http://git-scm.com/), use recent version (must support shallow clone)
+* [perl](http://www.activestate.com/activeperl), for build OpenSSL
 * do not use space in directory name
-* run from console commandline and check git, perl version (do not use cygwin perl or git...)
+* add PATH variable for git, perl
 
 ## Usage
 go to build-ace directory, input command below
