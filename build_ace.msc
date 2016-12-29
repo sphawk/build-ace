@@ -22,7 +22,7 @@ OPENSSL_ORIGIN = https://github.com/sphawk/openssl.git
 ZLIB_ORIGIN = https://github.com/sphawk/zlib.git
 
 # set upstreams
-ATCD_UPSTREAM = https://github.com/DOCGroup/ATCD.git
+ATCD_UPSTREAM = https://github.com/DOCGroup/ACE_TAO.git
 OPENSSL_UPSTREAM = https://github.com/openssl/openssl.git
 ZLIB_UPSTREAM = https://github.com/madler/zlib.git
 MPC_UPSTREAM = https://github.com/DOCGroup/MPC.git
