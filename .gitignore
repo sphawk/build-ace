@@ -3,3 +3,4 @@ source
 .prerequisite
 .vscode
 tags
+__pycache__

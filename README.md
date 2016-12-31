@@ -27,6 +27,7 @@ nmake -f build_ace.msc clone zlib-install openssl-install ace-install
 
 ### Pre-requisites
 * gcc/g++
+* gcc-multilib, g++-multilib (using sudo apt install, for 32bit build on 64bit os)
 * perl
 * git
 
